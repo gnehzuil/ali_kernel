@@ -3348,12 +3348,13 @@ retry:
 			ret = 0;
 		} else if (ret == MPAGE_DA_EXTENT_TAIL) {
 			/*
-			 * got one extent now try with
-			 * rest of the pages
+			 * Got one extent now try with rest of the pages.
+			 * If mpd.retval is set -EIO, journal is aborted.
+			 * So we don't need to write any more.
 			 */
 			pages_written += mpd.pages_written;
 			wbc->pages_skipped = pages_skipped;
-			ret = 0;
+			ret = mpd.retval;
 			io_done = 1;
 		} else if (wbc->nr_to_write)
 			/*
