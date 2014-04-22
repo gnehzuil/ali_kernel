@@ -192,9 +192,9 @@ tb_found:
 		} else {
 			ret = 1;
 			if (inet_csk(sk)->icsk_af_ops->bind_conflict(sk, tb)) {
-				if (((sk->sk_reuse &&
-				      sk->sk_state != TCP_LISTEN) ||
-				     sk->sk_reuseport) &&
+				if (((sk->sk_reuse && sk->sk_state != TCP_LISTEN) ||
+				     (tb->fastreuseport > 0 &&
+				      sk->sk_reuseport && tb->fastuid == uid)) &&
 				    smallest_size != -1 && --attempts >= 0) {
 					spin_unlock(&head->lock);
 					goto again;
@@ -216,19 +216,15 @@ tb_not_found:
 		if (sk->sk_reuseport) {
 			tb->fastreuseport = 1;
 			tb->fastuid = uid;
-		} else {
+		} else
 			tb->fastreuseport = 0;
-			tb->fastuid = 0;
-		}
 	} else {
 		if (tb->fastreuse &&
 		    (!sk->sk_reuse || sk->sk_state == TCP_LISTEN))
 			tb->fastreuse = 0;
 		if (tb->fastreuseport &&
-		    (!sk->sk_reuseport || tb->fastuid != uid)) {
+		    (!sk->sk_reuseport || tb->fastuid != uid))
 			tb->fastreuseport = 0;
-			tb->fastuid = 0;
-		}
 	}
 success:
 	if (!inet_csk(sk)->icsk_bind_hash)
