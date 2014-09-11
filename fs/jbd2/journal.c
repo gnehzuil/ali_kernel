@@ -1775,6 +1775,9 @@ void __jbd2_journal_abort_hard(journal_t *journal)
  * but don't do any other IO. */
 static void __journal_abort_soft (journal_t *journal, int errno)
 {
+	if (journal->j_flags & JBD2_IGNORE_ERRORS)
+		return;
+
 	if (journal->j_flags & JBD2_ABORT)
 		return;
 

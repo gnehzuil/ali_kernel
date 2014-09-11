@@ -1004,6 +1004,7 @@ struct journal_s
 #define JBD2_ABORT_ON_SYNCDATA_ERR	0x040	/* Abort the journal on file
 						 * data write error in ordered
 						 * mode */
+#define JBD2_IGNORE_ERRORS		0x1000	/* Ignore all journal errors */
 
 /*
  * Function declarations for the journaling transaction and buffer

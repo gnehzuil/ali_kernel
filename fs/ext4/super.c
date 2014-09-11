@@ -326,9 +326,13 @@ void ext4_journal_abort_handle(const char *caller, const char *err_fn,
 static void ext4_handle_error(struct super_block *sb)
 {
 	struct ext4_super_block *es = EXT4_SB(sb)->s_es;
+	int ignore_errors;
 
-	EXT4_SB(sb)->s_mount_state |= EXT4_ERROR_FS;
-	es->s_state |= cpu_to_le16(EXT4_ERROR_FS);
+	ignore_errors = test_opt2(sb, IGNORE_ERRORS);
+	if (!ignore_errors) {
+		EXT4_SB(sb)->s_mount_state |= EXT4_ERROR_FS;
+		es->s_state |= cpu_to_le16(EXT4_ERROR_FS);
+	}
 
 	if (sb->s_flags & MS_RDONLY)
 		return;
@@ -344,7 +348,8 @@ static void ext4_handle_error(struct super_block *sb)
 		ext4_msg(sb, KERN_CRIT, "Remounting filesystem read-only");
 		sb->s_flags |= MS_RDONLY;
 	}
-	ext4_commit_super(sb, 1);
+	if (!ignore_errors)
+		ext4_commit_super(sb, 1);
 	if (test_opt(sb, ERRORS_PANIC))
 		panic("EXT4-fs (device %s): panic forced after error\n",
 			sb->s_id);
@@ -501,6 +506,9 @@ void ext4_abort(struct super_block *sb, const char *function,
 		panic("EXT4-fs panic from previous error\n");
 
 	if (sb->s_flags & MS_RDONLY)
+		return;
+
+	if (test_opt2(sb, IGNORE_ERRORS))
 		return;
 
 	ext4_msg(sb, KERN_CRIT, "Remounting filesystem read-only");
@@ -1229,6 +1237,7 @@ enum {
 	Opt_inode_readahead_blks, Opt_journal_ioprio,
 	Opt_dioread_nolock, Opt_dioread_lock,
 	Opt_discard, Opt_nodiscard, Opt_init_itable, Opt_noinit_itable,
+	Opt_ignore_errors, Opt_noignore_errors,
 };
 
 static const match_table_t tokens = {
@@ -1302,6 +1311,8 @@ static const match_table_t tokens = {
 	{Opt_init_itable, "init_itable=%u"},
 	{Opt_init_itable, "init_itable"},
 	{Opt_noinit_itable, "noinit_itable"},
+	{Opt_ignore_errors, "ignore_errors"},
+	{Opt_noignore_errors, "noignore_errors"},
 	{Opt_err, NULL},
 };
 
@@ -1759,6 +1770,12 @@ set_qf_format:
 			break;
 		case Opt_noinit_itable:
 			clear_opt(sbi->s_mount_opt, INIT_INODE_TABLE);
+			break;
+		case Opt_ignore_errors:
+			set_opt(sbi->s_mount_opt2, IGNORE_ERRORS);
+			break;
+		case Opt_noignore_errors:
+			clear_opt(sbi->s_mount_opt2, IGNORE_ERRORS);
 			break;
 		default:
 			ext4_msg(sb, KERN_ERR,
@@ -4058,6 +4075,13 @@ static int ext4_load_journal(struct super_block *sb,
 		/* Make sure we flush the recovery flag to disk. */
 		ext4_commit_super(sb, 1);
 	}
+
+	/*
+	 * If ignore_errors options is enabled, JBD2_IGNORE_ERRORS flag
+	 * will be marked to make jbd2 ignore all journal errors.
+	 */
+	if (test_opt2(sb, IGNORE_ERRORS))
+		journal->j_flags |= JBD2_IGNORE_ERRORS;
 
 	return 0;
 }
